@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="splunk-splunk-sdk-java-1.1.jar">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/lib/splunk-splunk-sdk-java-1.1.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

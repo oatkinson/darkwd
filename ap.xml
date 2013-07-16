@@ -1,0 +1,96 @@
+List(
+<persons count="1" xmlns:fsapi-v1="http://api.familysearch.org/v1" xmlns="http://api.familysearch.org/reservation/v1">
+    <person version="8893b1a17f7f4b20a965da0bb574840aabb49d92" status="Ready" requestedRef="LD8B-ZN5" ref="LD8B-ZN5"
+            readyForTrip="false">
+        <qualification>
+            <name>
+                <fullText>Michelle LE MAUX</fullText>
+                <pieces>
+                    <piece type="Given">
+                        <value>Michelle</value>
+                    </piece>
+                    <piece type="Family">
+                        <value>LE MAUX</value>
+                    </piece>
+                </pieces>
+            </name>
+            <gender>Female</gender>
+            <events>
+                <event type="Death" scope="person">
+                    <date>
+                        <original>avant 20 novembre 1777</original>
+                        <normalized>avant 20 Novembre 1777</normalized>
+                        <astro>
+                            <earliest>2370404</earliest>
+                            <latest>2370419</latest>
+                        </astro>
+                    </date>
+                    <place>
+                        <normalized placeId="4034920">Ploufragan, Côtes-d'Armor, Bretagne, France</normalized>
+                        <original>Ploufragan, Côtes-d'Armor, Bretagne, France</original>
+                    </place>
+                </event>
+            </events>
+        </qualification>
+        <bornInCovenant>false</bornInCovenant>
+        <baptism status="Ready" reservable="true" readyForTrip="true" completed="false">
+            <prerequisitesForTrip/>
+        </baptism>
+        <confirmation status="Ready" reservable="true" readyForTrip="true" completed="false">
+            <prerequisitesForTrip>
+                <person ref="LD8B-ZN5">
+                    <baptism/>
+                </person>
+            </prerequisitesForTrip>
+        </confirmation>
+        <initiatory status="Ready" reservable="true" readyForTrip="true" completed="false">
+            <prerequisitesForTrip>
+                <person ref="LD8B-ZN5">
+                    <confirmation/>
+                </person>
+            </prerequisitesForTrip>
+        </initiatory>
+        <endowment status="Ready" reservable="true" readyForTrip="true" completed="false">
+            <prerequisitesForTrip>
+                <person ref="LD8B-ZN5">
+                    <initiatory/>
+                </person>
+            </prerequisitesForTrip>
+        </endowment>
+        <sealingToSpouse status="Ready" reservable="true" readyForTrip="true" completed="false">
+            <prerequisitesForTrip/>
+            <spouse ref="LD8B-H7Y">
+                <qualification>
+                    <name>
+                        <fullText>Maurice OISEL</fullText>
+                        <pieces>
+                            <piece type="Given">
+                                <value>Maurice</value>
+                            </piece>
+                            <piece type="Family">
+                                <value>OISEL</value>
+                            </piece>
+                        </pieces>
+                    </name>
+                    <gender>Male</gender>
+                    <events>
+                        <event type="Marriage" scope="couple">
+                            <date>
+                                <original>11 janvier 1747</original>
+                                <normalized>11 Janvier 1747</normalized>
+                                <astro>
+                                    <earliest>2359149</earliest>
+                                    <latest>2359149</latest>
+                                </astro>
+                            </date>
+                            <place>
+                                <normalized placeId="4030265">Saint-Donan, Côtes-d'Armor, Bretagne, France</normalized>
+                                <original>Saint-Donan, Côtes-d'Armor, Bretagne, France</original>
+                            </place>
+                        </event>
+                    </events>
+                </qualification>
+            </spouse>
+        </sealingToSpouse>
+    </person>
+</persons>)

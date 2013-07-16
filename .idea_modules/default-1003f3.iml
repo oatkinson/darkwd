@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module type="JAVA_MODULE" version="4">
+  <component name="FacetManager">
+    <facet type="scala" name="Scala">
+      <configuration>
+        <option name="compilerLibraryLevel" value="Global" />
+        <option name="compilerLibraryName" value="scala-compiler" />
+      </configuration>
+    </facet>
+  </component>
+  <component name="NewModuleRootManager" inherit-compiler-output="false">
+    <output url="file://$MODULE_DIR$/../target/scala-2.10/classes" />
+    <output-test url="file://$MODULE_DIR$/../target/scala-2.10/test-classes" />
+    <exclude-output />
+    <content url="file://$MODULE_DIR$/..">
+      <sourceFolder url="file://$MODULE_DIR$/../app" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/../conf" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/../test" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/../test/resources" isTestSource="true" />
+      <excludeFolder url="file://$MODULE_DIR$/../target" />
+    </content>
+    <orderEntry type="inheritedJdk" />
+    <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="library" name="org.scala-lang_scala-library_2.10.1" level="project" />
+    <orderEntry type="library" name="com.typesafe.akka_akka-actor_2.10_2.2-M3" level="project" />
+    <orderEntry type="library" name="com.typesafe_config_1.0.0" level="project" />
+    <orderEntry type="library" name="com.typesafe.akka_akka-testkit_2.10_2.2-M3" level="project" />
+    <orderEntry type="library" name="net.databinder.dispatch_dispatch-core_2.10_0.10.1" level="project" />
+    <orderEntry type="library" name="com.ning_async-http-client_1.7.16" level="project" />
+    <orderEntry type="library" name="io.netty_netty_3.6.3.Final" level="project" />
+    <orderEntry type="library" name="org.slf4j_slf4j-api_1.6.2" level="project" />
+    <orderEntry type="library" name="net.debasishg_sjson_2.10_0.19" level="project" />
+    <orderEntry type="library" name="org.scala-lang_scala-compiler_2.10.1" level="project" />
+    <orderEntry type="library" name="org.scala-lang_scala-reflect_2.10.1" level="project" />
+    <orderEntry type="library" name="net.databinder_dispatch-json_2.10_0.8.9" level="project" />
+    <orderEntry type="library" name="commons-io_commons-io_1.4" level="project" />
+    <orderEntry type="library" name="org.objenesis_objenesis_1.2" level="project" />
+    <orderEntry type="library" name="org.rogach_scallop_2.10_0.9.3" level="project" />
+    <orderEntry type="library" scope="TEST" name="org.scalatest_scalatest_2.10_1.9.1_test" level="project" />
+    <orderEntry type="library" scope="TEST" name="org.scala-lang_scala-actors_2.10.0_test" level="project" />
+    <orderEntry type="library" scope="TEST" name="junit_junit_4.11_test" level="project" />
+    <orderEntry type="library" scope="TEST" name="org.hamcrest_hamcrest-core_1.3_test" level="project" />
+    <orderEntry type="library" scope="TEST" name="com.novocode_junit-interface_0.7_test" level="project" />
+    <orderEntry type="library" scope="TEST" name="org.scala-tools.testing_test-interface_0.5_test" level="project" />
+    <orderEntry type="library" name="splunk-splunk-sdk-java-1.1.jar" level="project" />
+  </component>
+</module>
+
