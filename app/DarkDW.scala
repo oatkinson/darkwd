@@ -78,33 +78,45 @@ class ReqLogListener(percentToGet: Int) extends Actor  {
 }
 
 class DarkDiffer extends Actor {
+
   val log = Logging(context.system, this)
-  def diffString(first: String, second: String) = first diff second
 
-  def isInteresting(s: String): Boolean = true
+  def cleanOld(s: String) = {
+    s.replaceAll(""""version":.*,""", """"version":null,""").replaceAll("""\"p\.""", "\"").replaceAll("""\"placeId\":\".*\"""","""""placeId":null""")
+  }
 
-  def logDiffStrings(req: String, a: String, b : String, diff: String) {
+  def cleanNew(s: String) = {
+    s.replaceAll(""""version":".*"}$""", """""version":"1.3.20130703.0247"}""")
+  }
+
+  def diffString(first: String, second: String) = cleanOld(first) diff cleanNew(second)
+
+  def isInteresting(s: String): Boolean = {s.size > 0}
+
+  def o(s: String) = {}
+
+  def logDiffStrings(req: String, a: String, b : String, diff: String) = {
     if(isInteresting(diff)) {
       val message = "Request: " + req + "\ngenerated diff:\n" + diff + "\nbetween\n" + a + "\nand\n" + b
-      log.debug(message)
-      println(message)
+      log.info(message)
     }
   }
 
   def isJson(le: LogEntry) = le.query.contains("dataFormat=")
+
   def q(le: LogEntry) = { le.query.concat(if (!isJson(le)) """&dataFormat=application/json""" else "")}
 
   def receive: Actor.Receive = {
     case le:LogEvent => {
       val logEntry = LogEntry.parse(le.entry)
       val apUri: String = "https://api.familysearch.org" + logEntry.path + "?" + q(logEntry)
-      log.debug("Requesting v1 Uri: " + apUri)
+      o("Requesting v1 Uri: " + apUri)
       val sessionCookie = new Cookie("", "fssessionid", logEntry.sessionId, "", 0, false)
       val apiSvc = url(apUri).addCookie(sessionCookie)
       val apiPerson = Http(apiSvc OK as.String)
 
       val uri = "https://familysearch.org" + logEntry.path.replace("reservation/v1","oss") + "?" + q(logEntry)
-      log.debug("Requesting Uri: " + uri)
+      o("Requesting Uri: " + uri)
       // make request to oss
       val ossSvc = url(uri).addCookie(sessionCookie)
       val ossPerson = Http(ossSvc OK as.String)
@@ -116,14 +128,14 @@ class DarkDiffer extends Actor {
       } yield (ap, op, diffString(ap, op))
       // diff and log
       diff()
-      diff foreach (x => {logDiffStrings(apUri, x._1, x._2, x._3)})
       //wait for the difference to be evaluated
+      diff foreach (x => {logDiffStrings(apUri, x._1, x._2, x._3)})
     }
   }
 }
 
 object DarkWD extends App {
-  def o(s: String ) = println(s)
+  def o(s: String ) = {}
 //  implicit val logSource: LogSource[AnyRef] = new LogSource[AnyRef] {
 //    def genString(o: AnyRef): String = o.getClass.getName
 //    override def getClazz(o: AnyRef): Class[_] = o.getClass
@@ -134,11 +146,8 @@ object DarkWD extends App {
   // Create the 'dakrkdw' actor system
   val system = ActorSystem("darkdw")
 
-//  val log = Logging(system, this)
-//  log.debug("\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*")
-
   // Create the 'logListener' and " actor
-  val percentToLoad = 2
+  val percentToLoad = 1
   val nrOfWorkers = 60
   val logWorkerRouter = {
     system.actorOf(Props(new ReqLogListener(percentToLoad)).withRouter(RoundRobinRouter(3)), name = "logWorkerRouter")
@@ -152,7 +161,7 @@ object DarkWD extends App {
   // create an actor in a box
   val inbox = Inbox.create(system)
   implicit val timeout = Timeout(5 minutes)
-  for( pass <- 1 until 2) {
+  for( pass <- 1 until 61) {
 
     val resXmlList =logWorkerRouter ? searchXml
     val resJsonList =logWorkerRouter ? searchJson
@@ -161,31 +170,25 @@ object DarkWD extends App {
     val reqJsonEntries: List[String] = Await.result(resJsonList, timeout.duration).asInstanceOf[List[String]]
 
     val nReRequests = reqXmlEntries.size
-//    log.debug("\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*")
-    o("\n\n\n\nrequesting Xml " + nReRequests)
+    o("requesting Xml " + nReRequests)
     val nJsonReRequests = reqJsonEntries.size
-    o("\n\n\n\nrequesting Json " + nJsonReRequests)
+    o("requesting Json " + nJsonReRequests)
     val millisBetweenRequests = 60000 / (nReRequests + nJsonReRequests)
     var item = 1
     reqXmlEntries.take(nReRequests).foreach (r => {
-      o("\n**** Sending XML Request " + item + "/" + nReRequests + " pass " + pass + " ****")
+      o("**** Sending XML Request " + item + "/" + nReRequests + " pass " + pass + " ****")
       xmlWorkerRouter ! LogEvent(r)
       Thread.sleep(millisBetweenRequests)
       item = item + 1
     })
     item = 1
     reqJsonEntries.take(nJsonReRequests).foreach (r => {
-      o("\n*** Sending JSON Request " + item + "/" + nJsonReRequests + " of pass " + pass + " ***")
+      o("*** Sending JSON Request " + item + "/" + nJsonReRequests + " of pass " + pass + " ***")
       jsonWorkerRouter ! LogEvent(r)
       Thread.sleep(millisBetweenRequests)
       item = item + 1
     })
-
-//    for (waitPass <- 0 until 3) {
-//      Thread.sleep(20*1000)
-//      println("About to end pass " + pass + " in " + (60 - (waitPass + 1) * 20) + " seconds ....")
-//    }
-    o("***\n***\n***  Ending pass  " + pass + "\n***\n***")
+    o("***  Ending pass  " + pass + "***")
   }
   system.shutdown()
 }
