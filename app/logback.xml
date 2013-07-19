@@ -1,0 +1,8 @@
+<configuration>
+    <appender name="STDOUT" class="chqos.logback.core.ConsoleAppender"/>
+    <appender name="FILE" class="chqos.logback.core.RollingFileAppender"/>
+    <root level="info">
+        <appender-ref ref="STDOUT" />
+        <appender-ref ref="FILE" />
+    </root>
+</configuration>

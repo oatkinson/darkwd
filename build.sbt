@@ -10,6 +10,7 @@ libraryDependencies ++= Seq(
   "net.databinder.dispatch" %% "dispatch-core" % "0.10.1",
   "net.debasishg" %% "sjson" % "0.19",
   "org.rogach" %% "scallop" % "0.9.3",
+  "ch.qos.logback" % "logback-classic" % "1.0.0" % "runtime",
   "org.scalatest" % "scalatest_2.10" % "1.9.1" % "test",
   "junit" % "junit" % "4.11" % "test",
   "com.novocode" % "junit-interface" % "0.7" % "test->default"

@@ -135,7 +135,7 @@ class DarkDiffer extends Actor {
 }
 
 object DarkWD extends App {
-  def o(s: String ) = {}
+  def o(s: String ) = {println(s)}
 //  implicit val logSource: LogSource[AnyRef] = new LogSource[AnyRef] {
 //    def genString(o: AnyRef): String = o.getClass.getName
 //    override def getClazz(o: AnyRef): Class[_] = o.getClass
