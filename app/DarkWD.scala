@@ -97,7 +97,8 @@ class DarkDiffer extends Actor {
 
   def logDiffStrings(req: String, a: String, b : String, diff: String) = {
     if(isInteresting(diff)) {
-      val message = "Request: " + req + "\ngenerated diff:\n" + diff + "\nbetween\n" + a + "\nand\n" + b
+      val message = "apiRequest=" + req + "\ngenerated diff=" + diff + "\nbetween\napiPerson=" + a + "\nand\nossPerson=" + b
+      println("\n\n\ndiff found: " + diff + "\n\n")
       log.info(message)
     }
   }
@@ -136,10 +137,6 @@ class DarkDiffer extends Actor {
 
 object DarkWD extends App {
   def o(s: String ) = {println(s)}
-//  implicit val logSource: LogSource[AnyRef] = new LogSource[AnyRef] {
-//    def genString(o: AnyRef): String = o.getClass.getName
-//    override def getClazz(o: AnyRef): Class[_] = o.getClass
-//  }
   val searchXml = """search index=production req_attr_developerKey="3Z3L-Z4GK-J7ZS-YT3Z-Q4KY-YN66-ZX5K-176R" method=GET /reservation/v1/* NOT agent="Dispatch/0.10.1" NOT path=*ordinances* NOT query=*json* NOT path=*status* source=*public-api-access.log earliest=-1m"""
 
   val searchJson = """search index=production req_attr_developerKey="3Z3L-Z4GK-J7ZS-YT3Z-Q4KY-YN66-ZX5K-176R" method=GET /reservation/v1/* NOT agent="Dispatch/0.10.1" NOT path=*ordinances* query=*json* NOT path=*status* source=*public-api-access.log earliest=-1m"""
