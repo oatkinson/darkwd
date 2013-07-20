@@ -1,5 +1,5 @@
 import akka.actor.{Actor, Inbox, Props, ActorSystem}
-import akka.event.{LogSource, Logging}
+import akka.event.Logging
 import akka.pattern.ask
 import akka.routing.RoundRobinRouter
 import akka.util.Timeout
@@ -62,7 +62,7 @@ class ReqLogListener(percentToGet: Int) extends Actor  {
 
       val resCount = job.getResultCount
       log.debug("Respons Count = " + resCount)
-      var resArgs = new JobResultsArgs()
+      val resArgs = new JobResultsArgs()
       resArgs.setOutputMode(OutputMode.RAW)
       val nReRequests: Int = resCount / 100 * percentToGet
       log.debug("\n\n\n\nrequesting " + percentToGet + "% of " + resCount + " or " + nReRequests)
@@ -71,7 +71,7 @@ class ReqLogListener(percentToGet: Int) extends Actor  {
       val reader = Source.fromInputStream(results)
       val lines: Iterator[String] = reader.getLines()
       val resList = lines.toList
-      resList.foreach(log.debug(_))
+      resList.foreach(log.debug)
       sender ! resList
     }
   }
@@ -144,7 +144,7 @@ object DarkWD extends App {
   val system = ActorSystem("darkdw")
 
   // Create the 'logListener' and " actor
-  val percentToLoad = 1
+  val percentToLoad = 4
   val nrOfWorkers = 60
   val logWorkerRouter = {
     system.actorOf(Props(new ReqLogListener(percentToLoad)).withRouter(RoundRobinRouter(3)), name = "logWorkerRouter")
