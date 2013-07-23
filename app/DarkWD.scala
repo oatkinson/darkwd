@@ -1,5 +1,7 @@
+import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, Inbox, Props, ActorSystem}
 import akka.event.Logging
+import akka.kernel.Bootable
 import akka.pattern.ask
 import akka.routing.RoundRobinRouter
 import akka.util.Timeout
@@ -135,57 +137,98 @@ class DarkDiffer extends Actor {
   }
 }
 
-object DarkWD extends App {
+case class Run()
+case class Stopped()
+
+class Master extends Actor {
+  val percentToLoad = 4
+  val nrOfWorkers = 60
+
   def o(s: String ) = {println(s)}
+
   val searchXml = """search index=production req_attr_developerKey="3Z3L-Z4GK-J7ZS-YT3Z-Q4KY-YN66-ZX5K-176R" method=GET /reservation/v1/* NOT agent="Dispatch/0.10.1" NOT path=*ordinances* NOT query=*json* NOT path=*status* source=*public-api-access.log earliest=-1m"""
 
   val searchJson = """search index=production req_attr_developerKey="3Z3L-Z4GK-J7ZS-YT3Z-Q4KY-YN66-ZX5K-176R" method=GET /reservation/v1/* NOT agent="Dispatch/0.10.1" NOT path=*ordinances* query=*json* NOT path=*status* source=*public-api-access.log earliest=-1m"""
+
+  val diffWorkerRouter = {
+    context.system.actorOf(Props[DarkDiffer].withRouter(RoundRobinRouter(nrOfWorkers)), name = "requestAndDiffWorkerRouter")
+  }
+  val logWorkerRouter = {
+    context.system.actorOf(Props(new ReqLogListener(percentToLoad)).withRouter(RoundRobinRouter(3)), name = "SplunkListenerWorkerRouter")
+  }
+
+  // create an actor in a box
+  val inbox = Inbox.create(context.system)
+  implicit val timeout = Timeout(5 minutes)
+
+  var stopping = false
+
+  def process() = {
+    var pass = 1
+    while (!stopping) {
+      o(s"Starting pass $pass")
+      o(s"Stopping=$stopping")
+      val resXmlList =logWorkerRouter ? searchXml
+      val resJsonList =logWorkerRouter ? searchJson
+
+      val reqXmlEntries: List[String] = Await.result(resXmlList, timeout.duration).asInstanceOf[List[String]]
+      val reqJsonEntries: List[String] = Await.result(resJsonList, timeout.duration).asInstanceOf[List[String]]
+
+      val nReRequests = reqXmlEntries.size
+      o(s"requesting Xml $nReRequests")
+      val nJsonReRequests = reqJsonEntries.size
+      o(s"requesting Json $nJsonReRequests")
+      val millisBetweenRequests = 60000 / (nReRequests + nJsonReRequests)
+      var item = 1
+      reqXmlEntries.take(nReRequests).foreach (r => {
+        o(s"**** Sending XML Request $item/$nReRequests of pass $pass ****")
+        diffWorkerRouter ! LogEvent(r)
+        Thread.sleep(millisBetweenRequests)
+        item = item + 1
+      })
+      item = 1
+      reqJsonEntries.take(nJsonReRequests).foreach (r => {
+        o(s"*** Sending JSON Request $item/$nJsonReRequests of pass $pass ***")
+        diffWorkerRouter ! LogEvent(r)
+        Thread.sleep(millisBetweenRequests)
+        item = item + 1
+      })
+      o(s"***  Ending pass $pass ***")
+      pass = pass + 1
+    }
+    o("Finished processing")
+    DarkWD.inbox.getRef() ! Stopped
+  }
+
+  def receive: Actor.Receive = {
+    case Run => {o("Recieved Start");Future{process()}}
+    case Stop => {o("Recieved Stop");stopping = true; o(s"stopping=$stopping")}
+  }
+}
+
+object DarkWD {
   // Create the 'dakrkdw' actor system
   val system = ActorSystem("darkdw")
-
-  // Create the 'logListener' and " actor
-  val percentToLoad = 4
-  val nrOfWorkers = 60
-  val logWorkerRouter = {
-    system.actorOf(Props(new ReqLogListener(percentToLoad)).withRouter(RoundRobinRouter(3)), name = "logWorkerRouter")
-  }
-  val xmlWorkerRouter = {
-    system.actorOf(Props[DarkDiffer].withRouter(RoundRobinRouter(nrOfWorkers)), name = "xmlWorkerRouter")
-  }
-  val jsonWorkerRouter = {
-    system.actorOf(Props[DarkDiffer].withRouter(RoundRobinRouter(nrOfWorkers)), name = "jsonWorkerRouter")
-  }
-  // create an actor in a box
+  val master =system.actorOf(Props[Master], name = "masterController")
   val inbox = Inbox.create(system)
-  implicit val timeout = Timeout(5 minutes)
-  for( pass <- 1 until 61) {
-
-    val resXmlList =logWorkerRouter ? searchXml
-    val resJsonList =logWorkerRouter ? searchJson
-
-    val reqXmlEntries: List[String] = Await.result(resXmlList, timeout.duration).asInstanceOf[List[String]]
-    val reqJsonEntries: List[String] = Await.result(resJsonList, timeout.duration).asInstanceOf[List[String]]
-
-    val nReRequests = reqXmlEntries.size
-    o("requesting Xml " + nReRequests)
-    val nJsonReRequests = reqJsonEntries.size
-    o("requesting Json " + nJsonReRequests)
-    val millisBetweenRequests = 60000 / (nReRequests + nJsonReRequests)
-    var item = 1
-    reqXmlEntries.take(nReRequests).foreach (r => {
-      o("**** Sending XML Request " + item + "/" + nReRequests + " pass " + pass + " ****")
-      xmlWorkerRouter ! LogEvent(r)
-      Thread.sleep(millisBetweenRequests)
-      item = item + 1
-    })
-    item = 1
-    reqJsonEntries.take(nJsonReRequests).foreach (r => {
-      o("*** Sending JSON Request " + item + "/" + nJsonReRequests + " of pass " + pass + " ***")
-      jsonWorkerRouter ! LogEvent(r)
-      Thread.sleep(millisBetweenRequests)
-      item = item + 1
-    })
-    o("***  Ending pass  " + pass + "***")
-  }
-  system.shutdown()
+//  new DarkWD().startup()
 }
+
+class DarkWD extends Bootable {
+  import DarkWD._
+
+  implicit val timeout = Timeout(2 minutes)
+
+  def startup() = {
+    master ! Run
+  }
+
+  def shutdown() = {
+    master ! Stop
+    println("Waiting for Master to finish current pass")
+    val Stopped() = DarkWD.inbox.receive(3.minutes)
+    println("Finished waiting")
+    system.shutdown()
+  }
+}
+
