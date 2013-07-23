@@ -6,8 +6,8 @@ scalaVersion := "2.10.1"
 
 libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-actor" % "2.2-M3",
-  "com.typesafe.akka" %% "akka-testkit" % "2.2-M3",
   "com.typesafe.akka" %% "akka-slf4j" % "2.2-M3",
+  "com.typesafe.akka" %% "akka-testkit" % "2.2-M3",
   "net.databinder.dispatch" %% "dispatch-core" % "0.10.1",
   "net.debasishg" %% "sjson" % "0.19",
   "org.rogach" %% "scallop" % "0.9.3",
