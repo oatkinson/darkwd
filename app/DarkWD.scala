@@ -141,7 +141,8 @@ case class Run()
 case class Stopped()
 
 class Master extends Actor {
-  val percentToLoad = 4
+  val percentToLoad = context.system.settings.config.getInt("darkwd.percentLoad")
+  o(s"darkwd.percentLoad=$percentToLoad")
   val nrOfWorkers = 60
 
   def o(s: String ) = {println(s)}
