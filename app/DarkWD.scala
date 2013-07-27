@@ -1,5 +1,5 @@
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{Actor, Inbox, Props, ActorSystem}
+import akka.actor._
 import akka.event.Logging
 import akka.kernel.Bootable
 import akka.pattern.ask
@@ -54,8 +54,7 @@ object ReqLogListener{
   val opts: Map[String, Object] = Command("darkdw").opts
   val service = connect(opts)
 }
-class ReqLogListener(percentToGet: Int) extends Actor  {
-  val log = Logging(context.system, this)
+class ReqLogListener(percentToGet: Int) extends Actor with ActorLogging {
   def receive: Actor.Receive = {
     case search:String => {
       log.debug("Executing search:  " + search)
@@ -79,9 +78,31 @@ class ReqLogListener(percentToGet: Int) extends Actor  {
   }
 }
 
-class DarkDiffer extends Actor {
+class Shadower extends Actor with ActorLogging {
 
-  val log = Logging(context.system, this)
+  def isJson(le: LogEntry) = le.query.contains("dataFormat=") && le.query.contains("json")
+
+  def q(le: LogEntry) = { le.query.concat(if (!isJson(le)) """&dataFormat=application/json""" else "")}
+  val sessionId = context.system.settings.config.getString("darkwd.sessionId")
+
+  def receive: Actor.Receive = {
+    case le:LogEvent => {
+      val logEntry = LogEntry.parse(le.entry)
+      val sessionCookie = new Cookie("", "fssessionid", sessionId, "", 0, false)
+      val targetHost = context.system.settings.config.getString("darkwd.targetHost")
+      log.debug(s"darkwd.targetHost=$targetHost")
+      val uri = targetHost + logEntry.path.replace("reservation/v1","oss") + "?" + q(logEntry)
+      log.debug("Requesting Uri: " + uri)
+      // make request to oss
+      val ossSvc = url(uri).addCookie(sessionCookie)
+      val ossPerson = Http(ossSvc OK as.String)
+      val op = ossPerson() // wait for person response
+      println(s"person=$op")
+    }
+  }
+}
+
+class Differ extends Actor with ActorLogging {
 
   def cleanOld(s: String) = {
     s.replaceAll(""""version":.*,""", """"version":null,""").replaceAll("""\"p\.""", "\"").replaceAll("""\"placeId\":\".*\"""","""""placeId":null""")
@@ -140,7 +161,7 @@ class DarkDiffer extends Actor {
 case class Run()
 case class Stopped()
 
-class Master extends Actor {
+class DWDMaster extends Actor with ActorLogging {
   val percentToLoad = context.system.settings.config.getInt("darkwd.percentLoad")
   o(s"darkwd.percentLoad=$percentToLoad")
   val nrOfWorkers = 60
@@ -152,7 +173,7 @@ class Master extends Actor {
   val searchJson = """search index=production req_attr_developerKey="3Z3L-Z4GK-J7ZS-YT3Z-Q4KY-YN66-ZX5K-176R" method=GET /reservation/v1/* NOT agent="Dispatch/0.10.1" NOT path=*ordinances* query=*json* NOT path=*status* source=*public-api-access.log earliest=-1m"""
 
   val diffWorkerRouter = {
-    context.system.actorOf(Props[DarkDiffer].withRouter(RoundRobinRouter(nrOfWorkers)), name = "requestAndDiffWorkerRouter")
+    context.system.actorOf(Props[Differ].withRouter(RoundRobinRouter(nrOfWorkers)), name = "requestAndDiffWorkerRouter")
   }
   val logWorkerRouter = {
     context.system.actorOf(Props(new ReqLogListener(percentToLoad)).withRouter(RoundRobinRouter(3)), name = "SplunkListenerWorkerRouter")
@@ -206,11 +227,77 @@ class Master extends Actor {
     case Stop => {o("Recieved Stop");stopping = true; o(s"stopping=$stopping")}
   }
 }
+class DSMaster extends Actor with ActorLogging {
+  val percentToLoad = context.system.settings.config.getInt("darkwd.percentLoad")
+  o(s"darkwd.percentLoad=$percentToLoad")
+  val nrOfWorkers = 60
+
+  def o(s: String ) = {println(s)}
+
+  val searchXml = """search index=production req_attr_developerKey="3Z3L-Z4GK-J7ZS-YT3Z-Q4KY-YN66-ZX5K-176R" method=GET /reservation/v1/* NOT agent="Dispatch/0.10.1" NOT path=*ordinances* NOT query=*json* NOT path=*status* source=*public-api-access.log earliest=-1m"""
+
+  val searchJson = """search index=production req_attr_developerKey="3Z3L-Z4GK-J7ZS-YT3Z-Q4KY-YN66-ZX5K-176R" method=GET /reservation/v1/* NOT agent="Dispatch/0.10.1" NOT path=*ordinances* query=*json* NOT path=*status* source=*public-api-access.log earliest=-1m"""
+
+  val shadowWorkerRouter = {
+    context.system.actorOf(Props[Shadower].withRouter(RoundRobinRouter(nrOfWorkers)), name = "requestAndDiffWorkerRouter")
+  }
+  val logWorkerRouter = {
+    context.system.actorOf(Props(new ReqLogListener(percentToLoad)).withRouter(RoundRobinRouter(3)), name = "SplunkListenerWorkerRouter")
+  }
+
+  // create an actor in a box
+  val inbox = Inbox.create(context.system)
+  implicit val timeout = Timeout(5 minutes)
+
+  var stopping = false
+
+  def process() = {
+    var pass = 1
+    while (!stopping) {
+      o(s"Starting pass $pass")
+      o(s"Stopping=$stopping")
+      val resXmlList =logWorkerRouter ? searchXml
+      val resJsonList =logWorkerRouter ? searchJson
+
+      val reqXmlEntries: List[String] = Await.result(resXmlList, timeout.duration).asInstanceOf[List[String]]
+      val reqJsonEntries: List[String] = Await.result(resJsonList, timeout.duration).asInstanceOf[List[String]]
+
+      val nReRequests = reqXmlEntries.size
+      o(s"requesting Xml $nReRequests")
+      val nJsonReRequests = reqJsonEntries.size
+      o(s"requesting Json $nJsonReRequests")
+      val millisBetweenRequests = 60000 / (nReRequests + nJsonReRequests)
+      var item = 1
+      reqXmlEntries.take(nReRequests).foreach (r => {
+        o(s"**** Sending XML Request $item/$nReRequests of pass $pass ****")
+        shadowWorkerRouter ! LogEvent(r)
+        Thread.sleep(millisBetweenRequests)
+        item = item + 1
+      })
+      item = 1
+      reqJsonEntries.take(nJsonReRequests).foreach (r => {
+        o(s"*** Sending JSON Request $item/$nJsonReRequests of pass $pass ***")
+        shadowWorkerRouter ! LogEvent(r)
+        Thread.sleep(millisBetweenRequests)
+        item = item + 1
+      })
+      o(s"***  Ending pass $pass ***")
+      pass = pass + 1
+    }
+    o("Finished processing")
+    DarkShadow.inbox.getRef() ! Stopped
+  }
+
+  def receive: Actor.Receive = {
+    case Run => {o("Recieved Start");Future{process()}}
+    case Stop => {o("Recieved Stop");stopping = true; o(s"stopping=$stopping")}
+  }
+}
 
 object DarkWD {
   // Create the 'dakrkdw' actor system
-  val system = ActorSystem("darkdw")
-  val master =system.actorOf(Props[Master], name = "masterController")
+  val system = ActorSystem("darkwd")
+  val master =system.actorOf(Props[DWDMaster], name = "masterController")
   val inbox = Inbox.create(system)
 //  new DarkWD().startup()
 }
@@ -226,8 +313,41 @@ class DarkWD extends Bootable {
 
   def shutdown() = {
     master ! Stop
-    println("Waiting for Master to finish current pass")
+    println("Waiting for DWDMaster to finish current pass")
     val Stopped() = DarkWD.inbox.receive(3.minutes)
+    println("Finished waiting")
+    system.shutdown()
+  }
+}
+
+object DarkShadow {
+  // Create the 'dakrkshadow' actor system
+  val system = ActorSystem("darkshadow")
+  val master =system.actorOf(Props[DSMaster], name = "masterController")
+  val inbox = Inbox.create(system)
+  //  new DarkWD().startup()
+}
+
+
+
+class DarkShadow extends Bootable {
+  import DarkShadow._
+
+  implicit val timeout = Timeout(2 minutes)
+
+  def startup() = {
+    if (system.settings.config.getString("darkwd.sessionId") == "ChangeMe") {
+      println("\n*********************\n\nERROR:   darkwd.sessionId must be changed from `ChangeMe' to a valid sessionId in the conf/application.conf file\n\n**********************\n")
+      system.shutdown()
+    } else {
+      master ! Run
+    }
+  }
+
+  def shutdown() = {
+    master ! Stop
+    println("Waiting for DSMaster to finish current pass")
+    val Stopped() = DarkShadow.inbox.receive(3.minutes)
     println("Finished waiting")
     system.shutdown()
   }
